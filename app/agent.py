@@ -51,7 +51,19 @@ class LabAgent:
             },
         ):
             started = time.perf_counter()
-            docs = retrieve(message)
+            # Child observation cho bước RAG retrieval (fallback propagate_attributes
+            # cho client không có v4 observation API)
+            retrieval_cm = getattr(langfuse_client, "start_as_current_observation", None)
+            if retrieval_cm is not None:
+                with retrieval_cm(name="retrieval", as_type="retriever", input=message) as retrieval_obs:
+                    docs = retrieve(message)
+                    retrieval_obs.update(
+                        output={"doc_count": len(docs), "docs_preview": [summarize_text(d, 40) for d in docs]},
+                        metadata={"correlation_id": correlation_id},
+                    )
+            else:
+                with propagate_attributes(step="retrieval"):
+                    docs = retrieve(message)
             prompt = resolve_prompt(
                 langfuse_client,
                 feature=feature,
@@ -71,10 +83,29 @@ class LabAgent:
                 },
                 version=prompt.version,
             )
-            # TODO (CP2): instrument retrieve() and FakeLLM.generate() as child
-            # observations. The nested generation must receive prompt, usage and cost.
-            with propagate_attributes(prompt=prompt.managed_prompt):
-                response = self.llm.generate(prompt.text)
+            # Child observation cho bước LLM generation: nhận prompt, usage và cost
+            if retrieval_cm is not None:
+                with retrieval_cm(
+                    name="llm_generation",
+                    as_type="generation",
+                    model=self.model,
+                    input=prompt.text,
+                    prompt=prompt.managed_prompt,
+                    model_parameters={"temperature": 0.7},
+                ) as generation_obs:
+                    response = self.llm.generate(prompt.text)
+                    generation_obs.update(
+                        output=response.text,
+                        usage_details={
+                            "input": response.usage.input_tokens,
+                            "output": response.usage.output_tokens,
+                            "total": response.usage.input_tokens + response.usage.output_tokens,
+                        },
+                        metadata={"ttft_ms": response.ttft_ms},
+                    )
+            else:
+                with propagate_attributes(prompt=prompt.managed_prompt):
+                    response = self.llm.generate(prompt.text)
             quality_score = self._heuristic_quality(message, response.text, docs)
             latency_ms = int((time.perf_counter() - started) * 1000)
             cost_usd = self._estimate_cost(response.usage.input_tokens, response.usage.output_tokens)
