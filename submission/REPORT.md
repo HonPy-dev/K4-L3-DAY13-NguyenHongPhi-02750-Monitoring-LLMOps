@@ -7,7 +7,7 @@
 - **Họ và tên:** Nguyễn Hồng Phi
 - **MSSV:** L3A202602750
 - **Lớp:** K4-L3A
-- **Repository URL:** https://github.com/HonPy-dev/K4-L3-DAY13-Nguy-n-H-ng-Phi-02750-Monitoring-LLMOps
+- **Repository URL:** https://github.com/HonPy-dev/K4-L3-DAY13-NguyenHongPhi-02750-Monitoring-LLMOps
 - **Commit SHA cuối:** `9919e5f1e71d16cde6b50bad04ff9537f0d1bcde`
 - **Challenge ID:** `day13-k4-l3a-monitoring-llmops-v1`
 - **Tên project Langfuse cá nhân:** `day13-k4-l3a-L3A202602750` — ⚠️ project hiện tại trên Langfuse Cloud đang tên "My Project", cần đổi tên theo đúng convention này (Project Settings) để trace evidence hợp lệ.
